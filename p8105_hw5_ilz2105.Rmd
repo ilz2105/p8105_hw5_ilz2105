@@ -28,7 +28,7 @@ For character variables, you should fill in missing values with "virginica"
 ```{r}
 iris_with_missing
 # replace some species with NA's
-iris_with_missing[,"Species"] <- as.character(iris_with_missing[,"Species"])
+#iris_with_missing[,"Species"] <- as.character(iris_with_missing[,"Species"])
 iris_with_missing[c(1,50,100),"Species"] = NA
 
 # replace some numeric with NA's
@@ -37,11 +37,12 @@ iris_with_missing[c(2,79,112),c("Sepal.Length","Petal.Length")] = NA
 
 
 cleanData.func <- function(data){
-  
+  data = as.data.frame(data)
   # identify character variables and numeric variables
 
   # numeric vars
   numericVars = which(sapply(data, is.numeric)==TRUE)
+  numericVars
   # character vars
   characterVars = which(sapply(data, is.character)==TRUE)
   
@@ -53,7 +54,7 @@ cleanData.func <- function(data){
     data[is.na(data[,var]),var]="Virginica"
     
   }
-  
+
   # replace NA numeric vars with the mean of that variable
   for (i in 1:length(numericVars)){
     
@@ -62,7 +63,7 @@ cleanData.func <- function(data){
     data[is.na(data[,var]),var]=mean(data[,var],na.rm = TRUE)
     
   }
-  
+
   # return the cleaned data
   return(data)
   
@@ -70,6 +71,9 @@ cleanData.func <- function(data){
 
 
 iris_with_missing <- cleanData.func(iris_with_missing)
-  
+iris_with_missing
 ```
+
+__Problem 2__
+
 
