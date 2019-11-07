@@ -150,7 +150,15 @@ Set β1=0. Generate 10000 datasets from the model
 yi=β0+β1xi1+ϵi
 
 ```{r}
-n = 30
-xi1 = rnorm
+generate = function(n, beta0 = 2, beta1 = 0) {
+  
+  da = tibble(
+  x = rnorm(30, sd = 50),
+  y - beta0 + beta1*x + rnorm(n, 0, 1)
+)
+}
+
+
+
 ```
 
