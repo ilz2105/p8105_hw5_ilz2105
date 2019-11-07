@@ -14,6 +14,7 @@ __Problem 1__
 ```{r}
 library(tidyverse)
 library(rvest)
+library(readr)
 
 set.seed(10)
 
@@ -42,7 +43,7 @@ cleanData.func <- function(data){
 
   # numeric vars
   numericVars = which(sapply(data, is.numeric)==TRUE)
-  numericVars
+ 
   # character vars
   characterVars = which(sapply(data, is.character)==TRUE)
   
@@ -72,8 +73,84 @@ cleanData.func <- function(data){
 
 iris_with_missing <- cleanData.func(iris_with_missing)
 iris_with_missing
+
+final = map_df(.x = iris_with_missing, ~cleanData.func(.x))
 ```
 
 __Problem 2__
 
+made a dataframe with all the file names from the `data` folder in the `_MACOSX`
+folder
+
+Iterate over file names and read in data for each subject using purrr::map and saving the result as a new variable in the dataframe
+
+```{r}
+data = list.files(path = "./data")
+read_data = function(x){
+  
+  str_c("./data/", x) %>% 
+    read_csv(x)
+}
+
+data_2 = map(data, read_data)
+
+
+```
+
+Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
+
+```{r}
+read_csv("./hw5_data/data/exp_01.csv") %>% 
+  pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "value"
+  ) %>% 
+  view()
+```
+```{r}
+read_data = function(x){
+  
+  str_c("./data/", x) %>% 
+    read_csv(x)
+}
+
+macosx = tibble(
+  files = list.files(path = "./data/"),
+  path_name = str_c("./data/", files))
+
+tidy_macosx = macosx %>% 
+  mutate(
+    file_data = map(macosx %>%  
+                 pull(path_name), read_data)) %>% 
+  select(files, file_data) %>% 
+  unnest(cols = file_data) %>% 
+  janitor::clean_names() %>% 
+ pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "value") %>% 
+  separate(files, into = c("arm", "observation"), sep = "_") %>% 
+  mutate(
+    weekly_obs = str_replace(observation, "\\.csv", "")
+  )
+```
+
+__Problem 3__
+
+First set the following design elements:
+
+Fix n=30
+Fix xi1 as draws from a standard Normal distribution
+Fix β0=2
+Fix σ2=50
+Set β1=0. Generate 10000 datasets from the model
+yi=β0+β1xi1+ϵi
+
+```{r}
+n = 30
+xi1 = rnorm
+```
 
