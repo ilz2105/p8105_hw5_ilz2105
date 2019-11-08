@@ -15,67 +15,33 @@ __Problem 1__
 library(tidyverse)
 library(rvest)
 library(readr)
+library(broom)
 
 set.seed(10)
 
-iris_with_missing = iris %>% 
-  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
-  mutate(Species = as.character(Species))
 ```
 
 For numeric variables, you should fill in missing values with the mean of non-missing values
 For character variables, you should fill in missing values with "virginica"
 
+  
 ```{r}
-iris_with_missing
-# replace some species with NA's
-#iris_with_missing[,"Species"] <- as.character(iris_with_missing[,"Species"])
-iris_with_missing[c(1,50,100),"Species"] = NA
+iris_with_missing = iris %>% 
+  map_df(~replace(.x, sample(1:150, 20), NA)) %>%
+  mutate(Species = as.character(Species)) %>% 
+  janitor::clean_names()
 
-# replace some numeric with NA's
-iris_with_missing[c(2,79,112),c("Sepal.Length","Petal.Length")] = NA
-
-
-
-cleanData.func <- function(data){
-  data = as.data.frame(data)
-  # identify character variables and numeric variables
-
-  # numeric vars
-  numericVars = which(sapply(data, is.numeric)==TRUE)
- 
-  # character vars
-  characterVars = which(sapply(data, is.character)==TRUE)
-  
-  # replace NA character vars with "Virginica"
-  for (i in 1:length(characterVars)){
-    
-    var = characterVars[[i]]
-    
-    data[is.na(data[,var]),var]="Virginica"
-    
+clean_data = function(x) {
+  if (is.numeric(x)){
+    replace(x, is.na(x), round(mean(x, na.rm = TRUE), digits = 1))
   }
-
-  # replace NA numeric vars with the mean of that variable
-  for (i in 1:length(numericVars)){
-    
-    var = numericVars[[i]]
-    
-    data[is.na(data[,var]),var]=mean(data[,var],na.rm = TRUE)
-    
-  }
-
-  # return the cleaned data
-  return(data)
-  
+  else if(!is.numeric(x)){replace(x, is.na(x), "virginica")}
 }
 
 
-iris_with_missing <- cleanData.func(iris_with_missing)
-iris_with_missing
-
-final = map_df(.x = iris_with_missing, ~cleanData.func(.x))
+final_iris = map_df(iris_with_missing, ~clean_data(.x))
 ```
+
 
 __Problem 2__
 
@@ -89,10 +55,19 @@ data = list.files(path = "./data")
 read_data = function(x){
   
   str_c("./data/", x) %>% 
-    read_csv(x)
+    read_csv(x) %>% 
+    pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "value"%>% 
+  separate(files, into = c("arm", "observation"), sep = "_") %>% 
+  mutate(
+    weekly_obs = str_replace(observation, "\\.csv", "")
+  )) 
 }
-
-data_2 = map(data, read_data)
+read_data(data)
+data_x = map(data, ~read_data(.x))
 
 
 ```
@@ -100,20 +75,37 @@ data_2 = map(data, read_data)
 Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
 
 ```{r}
-read_csv("./hw5_data/data/exp_01.csv") %>% 
-  pivot_longer(
-    week_1:week_8,
-    names_to = "week",
-    names_prefix = "week_",
-    values_to = "value"
-  ) %>% 
-  view()
+macosx_files = tibble(
+  name = list.files(path = "./data/", all.files = TRUE, no.. = TRUE),
+  path = str_c("./data/", name))
+
+read_data = function(x){
+  
+    read_csv()
+}
+
+macosx_study = macosx_files %>% 
+  mutate(name = map(macosx_files$path, read_data)) %>% 
+  unnest(cols = name) %>% 
+  select(-path) %>% 
+  separate(name, into = c("arm", "observation", "id")) 
+  
 ```
+
 ```{r}
 read_data = function(x){
   
   str_c("./data/", x) %>% 
-    read_csv(x)
+    read_csv() %>% 
+     pivot_longer(
+    week_1:week_8,
+    names_to = "week",
+    names_prefix = "week_",
+    values_to = "value") %>% 
+  separate(files, into = c("arm", "observation"), sep = "_") %>% 
+  mutate(
+    weekly_obs = str_replace(observation, "\\.csv", "")
+  )
 }
 
 macosx = tibble(
@@ -130,7 +122,7 @@ tidy_macosx = macosx %>%
  pivot_longer(
     week_1:week_8,
     names_to = "week",
-    names_prefix = "week_",
+   # names_prefix = "week_",
     values_to = "value") %>% 
   separate(files, into = c("arm", "observation"), sep = "_") %>% 
   mutate(
@@ -150,15 +142,46 @@ Set β1=0. Generate 10000 datasets from the model
 yi=β0+β1xi1+ϵi
 
 ```{r}
-generate = function(n, beta0 = 2, beta1 = 0) {
+generate_reg = function(n = 30, beta0 = 2, beta1, var = 50) {
   
-  da = tibble(
-  x = rnorm(30, sd = 50),
-  y - beta0 + beta1*x + rnorm(n, 0, 1)
+  p3_data = tibble(
+  x = rnorm(n, mean = 0, sd = 1),
+  y = beta0 + beta1 * x + rnorm(n, 0, var^0.5)
 )
+  
+  ls_fit = lm(y ~ x, data = p3_data)
+  
+  tidy(ls_fit)
 }
 
+results = 
+  rerun(10000, generate_reg(n = 30, var = 50, beta1 = 0)) %>% 
+  bind_rows() %>% 
+  select(term, estimate, p.value) %>% 
+  filter(term == "x")
 
 
+power = tibble(
+  beta_1 = c(0, 1, 2, 3, 4, 5, 6)) %>% 
+  mutate(
+    output = map(.x = beta_1, ~rerun(10000, generate_reg(beta1 = .x))),
+    est = map(output, bind_rows)) %>% 
+  select(-output) %>% 
+  unnest(est) %>% 
+  select(beta_1, term, estimate, p.value) %>% 
+  filter(term == "x")
+
+final = power %>% 
+  group_by(beta_1) %>% 
+  summarize(sum_p = sum(p.value < 0.05),
+            total_p = sum_p/n()) %>% 
+  ggplot(aes(x = beta_1, y = total_p))+
+  geom_bar(stat = "identity", fill = "purple")+
+  labs(title = "association between effect size & power",
+       x = "true value of beta1",
+       y = "power") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+final
 ```
 
