@@ -6,7 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, 
+                      warning = FALSE)
 ```
 
 __Problem 1__ 
@@ -18,7 +19,6 @@ library(readr)
 library(broom)
 
 set.seed(10)
-
 ```
 
 For numeric variables, you should fill in missing values with the mean of non-missing values
@@ -45,90 +45,50 @@ final_iris = map_df(iris_with_missing, ~clean_data(.x))
 
 __Problem 2__
 
-made a dataframe with all the file names from the `data` folder in the `_MACOSX`
-folder
-
-Iterate over file names and read in data for each subject using purrr::map and saving the result as a new variable in the dataframe
-
-```{r}
-data = list.files(path = "./data")
-read_data = function(x){
-  
-  str_c("./data/", x) %>% 
-    read_csv(x) %>% 
-    pivot_longer(
-    week_1:week_8,
-    names_to = "week",
-    names_prefix = "week_",
-    values_to = "value"%>% 
-  separate(files, into = c("arm", "observation"), sep = "_") %>% 
-  mutate(
-    weekly_obs = str_replace(observation, "\\.csv", "")
-  )) 
-}
-read_data(data)
-data_x = map(data, ~read_data(.x))
+For this problemI made a dataframe with all the file names from the `data` folder in the `_MACOSX` folder, then I 
+iterated over file names and read in data for each subject using purrr::map and saved the result as a new variable 
+in the dataframe. Then I tidied the result; manipulated file names to include control arm and subject ID, make sure 
+weekly observations are “tidy”, and do any other tidying that’s necessary.
 
 
-```
-
-Tidy the result; manipulate file names to include control arm and subject ID, make sure weekly observations are “tidy”, and do any other tidying that’s necessary
 
 ```{r}
-macosx_files = tibble(
-  name = list.files(path = "./data/", all.files = TRUE, no.. = TRUE),
-  path = str_c("./data/", name))
+files = tibble(
+  names = list.files(path = "./data/", all.files = TRUE, no.. = TRUE),
+  paths = str_c("./data/", names))
 
-read_data = function(x){
-  
-    read_csv()
+func = function(x){
+  read_csv(x)
 }
-
-macosx_study = macosx_files %>% 
-  mutate(name = map(macosx_files$path, read_data)) %>% 
-  unnest(cols = name) %>% 
-  select(-path) %>% 
-  separate(name, into = c("arm", "observation", "id")) 
-  
-```
-
-```{r}
-read_data = function(x){
-  
-  str_c("./data/", x) %>% 
-    read_csv() %>% 
-     pivot_longer(
-    week_1:week_8,
-    names_to = "week",
-    names_prefix = "week_",
-    values_to = "value") %>% 
-  separate(files, into = c("arm", "observation"), sep = "_") %>% 
-  mutate(
-    weekly_obs = str_replace(observation, "\\.csv", "")
-  )
-}
-
-macosx = tibble(
-  files = list.files(path = "./data/"),
-  path_name = str_c("./data/", files))
-
-tidy_macosx = macosx %>% 
-  mutate(
-    file_data = map(macosx %>%  
-                 pull(path_name), read_data)) %>% 
-  select(files, file_data) %>% 
-  unnest(cols = file_data) %>% 
+study = files %>% 
+  mutate(source = map(files$paths, func)) %>% 
+  unnest(cols = c(source)) %>% 
   janitor::clean_names() %>% 
- pivot_longer(
-    week_1:week_8,
+  select(-paths) %>% 
+  separate(names, into = c("study_arm","subject_id", "type")) %>%
+  select(-type) %>% 
+   pivot_longer(
+     cols = starts_with("week_"),
     names_to = "week",
-   # names_prefix = "week_",
+    names_prefix = "week_",
     values_to = "value") %>% 
-  separate(files, into = c("arm", "observation"), sep = "_") %>% 
-  mutate(
-    weekly_obs = str_replace(observation, "\\.csv", "")
-  )
+  group_by(subject_id) 
+
 ```
+```{r}
+# spaghetti plot
+
+plot = study %>% 
+  ggplot(aes(x = week, y = value, color = study_arm, group = study_arm))+
+  geom_path()+
+  labs( title = "Longitudinal Study: Observations on Each Subject Over Time",
+        x = "Week",
+        y = "Observations")+
+  theme(plot.title = element_text(hjust = 0.5))
+plot
+
+```
+
 
 __Problem 3__
 
@@ -174,14 +134,42 @@ power = tibble(
 final = power %>% 
   group_by(beta_1) %>% 
   summarize(sum_p = sum(p.value < 0.05),
-            total_p = sum_p/n()) %>% 
-  ggplot(aes(x = beta_1, y = total_p))+
-  geom_bar(stat = "identity", fill = "purple")+
+            total_power = sum_p/n()) %>% 
+  ggplot(aes(x = beta_1, y = total_power, fill = total_power))+
+  geom_bar(stat = "identity")+
   labs(title = "association between effect size & power",
        x = "true value of beta1",
        y = "power") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5))+
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
 
 final
+```
+Make a second plot (or overlay on the first) the average estimate of β^1 only in samples for which the null was rejected on the y axis and the true value of β1 on the x axis. Is the sample average of β^1 across tests for which the null is rejected approximately equal to the true value of β1? Why or why not?
+
+```{r}
+final_restricted = 
+  power %>% 
+  group_by(beta_1) %>% 
+  summarize(
+    b1_avg_est = mean(estimate),
+    b1_signif = mean(estimate[p.value < 0.05], na.rm = TRUE)) %>% 
+  ggplot(aes(x = beta_1, y = b1_avg_est ,fill = "maroon4"))+
+  geom_bar(stat = "identity")+
+  geom_point(aes(x = beta_1, y = b1_signif))+
+  labs( title = "true vs. average B1 for samples",
+        x = "true value of B1",
+        y = "average estimate of B1")+
+  theme( plot.title = element_text(hjust = 0.5),
+    legend.position = "bottom") +
+  scale_y_continuous(breaks = seq(-1, 8, 1)) +
+  scale_fill_identity(name = 'Legend', guide = 'legend',
+                      labels = c('True vs. Estimated Values of β1')) +
+  theme(plot.title = element_text(hjust = 0.5))
+
+final_restricted
 ```
 
