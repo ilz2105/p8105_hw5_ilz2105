@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE,
 
 __Problem 1__ 
 
-```{r}
+```{r message=FALSE}
 library(tidyverse)
 library(rvest)
 library(readr)
@@ -24,7 +24,6 @@ set.seed(10)
 For numeric variables, you should fill in missing values with the mean of non-missing values
 For character variables, you should fill in missing values with "virginica"
 
-  
 ```{r}
 iris_with_missing = iris %>% 
   map_df(~replace(.x, sample(1:150, 20), NA)) %>%
@@ -40,17 +39,18 @@ clean_data = function(x) {
 
 
 final_iris = map_df(iris_with_missing, ~clean_data(.x))
+final_iris
 ```
 
+The `final_iris` df shows the iris dataset when the NA values for the numeric variables are filled in with the mean 
+of the non-missing values and the character variables are filled in with "virginica`.
 
 __Problem 2__
 
-For this problemI made a dataframe with all the file names from the `data` folder in the `_MACOSX` folder, then I 
+For this problem I made a dataframe with all the file names from the `data` folder in the `_MACOSX` folder, then I 
 iterated over file names and read in data for each subject using purrr::map and saved the result as a new variable 
 in the dataframe. Then I tidied the result; manipulated file names to include control arm and subject ID, make sure 
 weekly observations are “tidy”, and do any other tidying that’s necessary.
-
-
 
 ```{r}
 files = tibble(
@@ -88,6 +88,7 @@ plot = study %>%
 plot
 
 ```
+The spaghetti plot shows the observations on each subject over time. The experiment arm has higher observation values compared to the control arm, on average. Week 6 shows the lowest observation values for the control arm with a value of almost -2.5, and week 7 has the peak observation value for the exp arm which was about 7.6. 
 
 
 __Problem 3__
@@ -140,15 +141,14 @@ final = power %>%
   labs(title = "association between effect size & power",
        x = "true value of beta1",
        y = "power") +
-  theme(plot.title = element_text(hjust = 0.5))+
-options(
-  ggplot2.continuous.colour = "viridis",
-  ggplot2.continuous.fill = "viridis"
-)
+  theme(plot.title = element_text(hjust = 0.5))
 
 final
 ```
-Make a second plot (or overlay on the first) the average estimate of β^1 only in samples for which the null was rejected on the y axis and the true value of β1 on the x axis. Is the sample average of β^1 across tests for which the null is rejected approximately equal to the true value of β1? Why or why not?
+
+The plot above shows the positive association between power and the effect size. As the power increases (as the proportion of times the null was rejected increases), the true value of beta1 or the effect size increases. 
+
+Next I made a second plot showing the average estimate of β^1 only in samples for which the null was rejected on the y axis and the true value of β1 on the x axis. 
 
 ```{r}
 final_restricted = 
@@ -173,3 +173,8 @@ final_restricted =
 final_restricted
 ```
 
+The black dots represent the average beta1 estimates only in samples for which the null was rejected while the maroon bars represent
+the average estimates of beta1. The sample average of beta1 across tests for which the null was rejected approximately is not equal to 
+the true value of beta1 in all of the tests. When beta1 = 0-4, the sample averages are not equal to the true value, but for beta1 = 5-6,
+the sample average gets closer to the true value. This is because larger efffect sizes are easier to estimate compared to smaller effect 
+sizes because they are eaiser to detect-this is why as the beta1 gets larger, the sample averages get more accurate. 
